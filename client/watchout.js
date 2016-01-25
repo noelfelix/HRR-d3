@@ -22,6 +22,7 @@ var gameBoard = d3.select('body').append('svg')
                     .attr('height', gameOptions.height);
 
 var map = d3.select('body').append('svg')
+                    .attr('class', 'map')
                     .attr('width', 300)
                     .attr('height', 300);
 
@@ -31,7 +32,8 @@ var updateScore = function(){
 };
 
 var updateBestScore = function(){
-  if(gameStats.score > gameStats.bestScore){
+  if(player.score > player.bestScore){ 
+    player.bestScore = player.score;
     gameStats.bestScore = gameStats.score;
   }
 
@@ -44,6 +46,8 @@ var Player = function(){
   this.x = 0;
   this.y = 0;
   this.r = 5;
+  this.score = 0;
+  this.bestScore = 0;
 };
 
 Player.prototype.render = function(board) {
@@ -140,6 +144,9 @@ var createEnemies = function() {
   return enemies;
 };
 
+var scores = [];
+var collided = false;
+
 var render = function(enemy_data) {
   var enemies = gameBoard.selectAll('image.enemy')
                   .data(enemy_data, function(d) { return d.id });
@@ -156,25 +163,40 @@ var render = function(enemy_data) {
   enemies.exit()
     .remove();
 
+      map.selectAll('.mapped')
+        .data(scores)
+        .enter()
+        .append('circle')
+        .attr('class', 'mapped')
+        .attr('fill', 'black')
+        .attr('cx', axes.x(player.x))
+        .attr('cy', axes.y(player.y))
   var checkCollision = function(enemy, collidedCallback) {
     var radiusSum = parseFloat(enemy.attr('width') / 2) + player.r;
     var xDiff = parseFloat(enemy.attr('x')) - player.x;
     var yDiff = parseFloat(enemy.attr('y')) - player.y;
 
-    if ( (Math.sqrt( Math.pow(xDiff,2) + Math.pow(yDiff,2) ) < radiusSum) ) {
+    if ( (Math.sqrt( Math.pow(xDiff,2) + Math.pow(yDiff,2) ) < radiusSum) && !collided) {
+      scores.push({score: gameStats.score});
       collidedCallback(player, enemy);
-      map.append('circle')
-        .attr('fill', 'black')
-        .attr('cx', axes.x(player.x))
-        .attr('cy', axes.y(player.y))
-        .attr('r', 2)
     }
   }
 
   var onCollision = function() {
-    updateBestScore();
-    gameStats.score = 0;
-    updateScore();
+    setTimeout(function(){
+      collided = false;
+    }, 2000);
+    if(collided === false){
+      collided = true;
+      updateScore();
+      updateBestScore();
+      var test = d3.selectAll('.mapped')
+      test.attr('r', function(d){
+          return d.score / gameStats.bestScore * 20;
+        });
+      gameStats.score = 0;
+      player.score = 0;
+    }
   }
 
   var tweenWithCollisionDetection = function(endData){
@@ -256,6 +278,7 @@ var play = function(){
 
   var increaseScore = function(){
     gameStats.score++;
+    player.score++;
     updateScore();
   };
 
